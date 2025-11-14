@@ -26,7 +26,6 @@
     #historyList table { width: 100%; border-collapse: collapse; }
     #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
     #historyList th { background-color: #f4f4f4; }
-    .month-selector { margin-top: 20px; }
     #graphContainer { width: 100%; overflow-x: auto; }
 
     @media (max-width: 600px) {
@@ -71,13 +70,13 @@
   <input id="otherCarbs" type="number" placeholder="糖質を入力" />
 
   <label>カーボ比（g / 1U）：</label>
-  <input id="carbRatio" type="number" />
+  <input id="carbRatio" type="number" value="12" />
 
   <label>現在血糖値（mg/dL）：</label>
   <input id="currentBg" type="number" />
 
   <label>目標血糖値（mg/dL）：</label>
-  <input id="targetBg" type="number" />
+  <input id="targetBg" type="number" value="100" />
 
   <button onclick="calculateInsulin()">インスリン量を計算する</button>
 
@@ -95,6 +94,7 @@
         <th>その他糖質量(g)</th>
         <th>合計糖質量(g)</th>
         <th>必要インスリン量(U)</th>
+        <th>削除</th>
       </tr>
     </thead>
     <tbody id="historyTable"></tbody>
@@ -122,6 +122,8 @@ let selectedMonth = '2025-11';
 
 // 前回入力値を保持
 let lastInsulinChange = { morning: '', afternoon: '', evening: '' };
+let lastCarbRatio = 12;
+let lastTargetBg = 100;
 
 function toggleCarbInput() {
   const food = document.getElementById('mainFood').value;
@@ -144,14 +146,16 @@ function calculateInsulin() {
   const currentBg = Number(document.getElementById('currentBg').value);
   const targetBg = Number(document.getElementById('targetBg').value);
 
+  // 前回値の保存
+  lastInsulinChange[mealTime] = insulinChange;
+  lastCarbRatio = carbRatio;
+  lastTargetBg = targetBg;
+
   const mainCarbs = mainGram * (carbTable[mainFood] / 100);
   const totalCarbs = mainCarbs + otherCarbs;
   const carbInsulin = totalCarbs / carbRatio;
   const correctionInsulin = (currentBg - targetBg) / insulinChange;
   const totalInsulin = Math.max(carbInsulin + correctionInsulin, 0);
-
-  // 朝・昼・夜のインスリン変化を保存
-  lastInsulinChange[mealTime] = insulinChange;
 
   // 結果表示
   document.getElementById('result').innerHTML =
@@ -179,10 +183,16 @@ function saveHistory(entry) {
   localStorage.setItem('history', JSON.stringify(history));
 }
 
+function deleteHistory(index) {
+  history.splice(index, 1);
+  localStorage.setItem('history', JSON.stringify(history));
+  displayHistory();
+}
+
 function displayHistory() {
   const tbody = document.getElementById('historyTable');
   tbody.innerHTML = '';
-  history.forEach(entry => {
+  history.forEach((entry, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${entry.date}</td>
@@ -191,6 +201,7 @@ function displayHistory() {
       <td>${entry.otherCarbs}</td>
       <td>${entry.totalCarbs}</td>
       <td>${entry.insulin}</td>
+      <td><button onclick="deleteHistory(${index})">削除</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -198,7 +209,6 @@ function displayHistory() {
 
 function updateGraph() {
   const selectedMonthHistory = history.filter(entry => entry.date.startsWith(selectedMonth));
-
   const labels = Array.from({ length: 30 }, (_, i) => `${i + 1}日`);
   const bgData = selectedMonthHistory.map(e => Number(e.bg));
   const insulinData = selectedMonthHistory.map(e => Number(e.insulin));
@@ -220,11 +230,6 @@ function updateGraph() {
       scales: {
         y: { min: 50, max: 200, position: 'left', title: { display: true, text: '血糖値(mg/dL)' } },
         y1: { min: 0, max: 40, position: 'right', title: { display: true, text: 'インスリン量(U)' }, grid: { drawOnChartArea: false } }
-      },
-      plugins: {
-        legend: {
-          position: 'top',
-        },
       }
     }
   });
@@ -235,7 +240,7 @@ document.getElementById('monthSelector').addEventListener('change', function() {
   updateGraph();
 });
 
-updateGraph(); // 初期化時にグラフを描画
+displayHistory();
 </script>
 </body>
 </html>
