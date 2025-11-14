@@ -27,6 +27,7 @@
     #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
     #historyList th { background-color: #f4f4f4; }
     .month-selector { margin-top: 20px; }
+    #graphContainer { width: 100%; overflow-x: auto; }
 
     @media (max-width: 600px) {
       body { padding: 10px; font-size: 14px; }
@@ -106,10 +107,11 @@
   <select id="monthSelector" onchange="updateGraph()">
     <option value="2025-11">2025年11月</option>
     <option value="2025-12">2025年12月</option>
-    <!-- 他の月も追加可能 -->
   </select>
 </div>
-<canvas id="insulinChart"></canvas>
+<div id="graphContainer">
+  <canvas id="insulinChart"></canvas>
+</div>
 
 <script>
 const mealLabelMap = { morning: '朝', afternoon: '昼', evening: '夜' };
@@ -118,7 +120,9 @@ const carbTable = { rice: 37, bread: 44, noodle: 25 };
 let history = JSON.parse(localStorage.getItem('history')) || [];
 let selectedMonth = '2025-11';
 
-// パン選択時は糖質量を直接入力
+// 前回入力値を保持
+let lastInsulinChange = { morning: '', afternoon: '', evening: '' };
+
 function toggleCarbInput() {
   const food = document.getElementById('mainFood').value;
   const label = document.getElementById('otherCarbsLabel');
@@ -146,20 +150,28 @@ function calculateInsulin() {
   const correctionInsulin = (currentBg - targetBg) / insulinChange;
   const totalInsulin = Math.max(carbInsulin + correctionInsulin, 0);
 
+  // 朝・昼・夜のインスリン変化を保存
+  lastInsulinChange[mealTime] = insulinChange;
+
+  // 結果表示
   document.getElementById('result').innerHTML =
     `■ 主食の糖質：${mainCarbs.toFixed(1)} g<br>■ その他糖質：${otherCarbs.toFixed(1)} g<br>■ 合計糖質：${totalCarbs.toFixed(1)} g<br>■ 必要インスリン量：${totalInsulin.toFixed(1)} U`;
 
-  saveHistory({
-    date: date,
-    meal: mealTime,
-    mainFood: mainFood,
-    otherCarbs: otherCarbs.toFixed(1),
-    totalCarbs: totalCarbs.toFixed(1),
-    insulin: totalInsulin.toFixed(1),
-    bg: currentBg.toFixed(1)
-  });
-
-  displayHistory();
+  // グラフに反映するか確認
+  const confirmReflect = confirm("グラフに反映させますか？");
+  if (confirmReflect) {
+    saveHistory({
+      date: date,
+      meal: mealTime,
+      mainFood: mainFood,
+      otherCarbs: otherCarbs.toFixed(1),
+      totalCarbs: totalCarbs.toFixed(1),
+      insulin: totalInsulin.toFixed(1),
+      bg: currentBg.toFixed(1)
+    });
+    displayHistory();
+    updateGraph();
+  }
 }
 
 function saveHistory(entry) {
@@ -182,22 +194,19 @@ function displayHistory() {
     `;
     tbody.appendChild(tr);
   });
-  updateGraph();
 }
 
-// グラフ描画
-let insulinChart;
 function updateGraph() {
   const selectedMonthHistory = history.filter(entry => entry.date.startsWith(selectedMonth));
 
-  const labels = selectedMonthHistory.map(e => `${e.date} ${mealLabelMap[e.meal]}`);
+  const labels = Array.from({ length: 30 }, (_, i) => `${i + 1}日`);
   const bgData = selectedMonthHistory.map(e => Number(e.bg));
   const insulinData = selectedMonthHistory.map(e => Number(e.insulin));
 
   const ctx = document.getElementById('insulinChart').getContext('2d');
-  if(insulinChart) insulinChart.destroy();
+  if (window.insulinChart) window.insulinChart.destroy();
 
-  insulinChart = new Chart(ctx, {
+  window.insulinChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: labels,
@@ -209,20 +218,24 @@ function updateGraph() {
     options: {
       responsive: true,
       scales: {
-        y: { min: 50, max: 200, position: 'left', title: { display:true, text:'血糖値(mg/dL)' } },
-        y1: { min: 0, max: 40, position: 'right', title: { display:true, text:'インスリン量(U)' }, grid: { drawOnChartArea: false } }
+        y: { min: 50, max: 200, position: 'left', title: { display: true, text: '血糖値(mg/dL)' } },
+        y1: { min: 0, max: 40, position: 'right', title: { display: true, text: 'インスリン量(U)' }, grid: { drawOnChartArea: false } }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+        },
       }
     }
   });
 }
 
-// 月選択時にグラフを更新
 document.getElementById('monthSelector').addEventListener('change', function() {
   selectedMonth = this.value;
   updateGraph();
 });
 
-displayHistory();
+updateGraph(); // 初期化時にグラフを描画
 </script>
 </body>
 </html>
