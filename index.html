@@ -26,6 +26,7 @@
     #historyList table { width: 100%; border-collapse: collapse; }
     #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
     #historyList th { background-color: #f4f4f4; }
+    .month-selector { margin-top: 20px; }
 
     @media (max-width: 600px) {
       body { padding: 10px; font-size: 14px; }
@@ -41,6 +42,9 @@
 
 <div class="box">
   <h2>① インスリン計算</h2>
+
+  <label>日付を選択：</label>
+  <input type="date" id="dateSelector" />
 
   <label>食事時間：</label>
   <select id="mealTime">
@@ -84,7 +88,7 @@
   <table>
     <thead>
       <tr>
-        <th>日時</th>
+        <th>日付</th>
         <th>食事時間</th>
         <th>主食</th>
         <th>その他糖質量(g)</th>
@@ -97,6 +101,14 @@
 </div>
 
 <h2>② 血糖値・インスリン量グラフ</h2>
+<div class="month-selector">
+  <label>月を選択：</label>
+  <select id="monthSelector" onchange="updateGraph()">
+    <option value="2025-11">2025年11月</option>
+    <option value="2025-12">2025年12月</option>
+    <!-- 他の月も追加可能 -->
+  </select>
+</div>
 <canvas id="insulinChart"></canvas>
 
 <script>
@@ -104,19 +116,21 @@ const mealLabelMap = { morning: '朝', afternoon: '昼', evening: '夜' };
 const carbTable = { rice: 37, bread: 44, noodle: 25 };
 
 let history = JSON.parse(localStorage.getItem('history')) || [];
+let selectedMonth = '2025-11';
 
 // パン選択時は糖質量を直接入力
 function toggleCarbInput() {
   const food = document.getElementById('mainFood').value;
   const label = document.getElementById('otherCarbsLabel');
   if(food === 'bread') {
-    label.textContent = '糖質量を入力（g）：';
+    label.textContent = 'パンの糖質量（g）：';
   } else {
     label.textContent = 'その他糖質量（g）：';
   }
 }
 
 function calculateInsulin() {
+  const date = document.getElementById('dateSelector').value;
   const mealTime = document.getElementById('mealTime').value;
   const insulinChange = Number(document.getElementById('insulinChange').value);
   const mainFood = document.getElementById('mainFood').value;
@@ -136,7 +150,7 @@ function calculateInsulin() {
     `■ 主食の糖質：${mainCarbs.toFixed(1)} g<br>■ その他糖質：${otherCarbs.toFixed(1)} g<br>■ 合計糖質：${totalCarbs.toFixed(1)} g<br>■ 必要インスリン量：${totalInsulin.toFixed(1)} U`;
 
   saveHistory({
-    date: new Date().toLocaleString(),
+    date: date,
     meal: mealTime,
     mainFood: mainFood,
     otherCarbs: otherCarbs.toFixed(1),
@@ -174,9 +188,11 @@ function displayHistory() {
 // グラフ描画
 let insulinChart;
 function updateGraph() {
-  const labels = history.map(e => `${e.date} ${mealLabelMap[e.meal]}`);
-  const bgData = history.map(e => Number(e.bg));
-  const insulinData = history.map(e => Number(e.insulin));
+  const selectedMonthHistory = history.filter(entry => entry.date.startsWith(selectedMonth));
+
+  const labels = selectedMonthHistory.map(e => `${e.date} ${mealLabelMap[e.meal]}`);
+  const bgData = selectedMonthHistory.map(e => Number(e.bg));
+  const insulinData = selectedMonthHistory.map(e => Number(e.insulin));
 
   const ctx = document.getElementById('insulinChart').getContext('2d');
   if(insulinChart) insulinChart.destroy();
@@ -194,11 +210,17 @@ function updateGraph() {
       responsive: true,
       scales: {
         y: { min: 50, max: 200, position: 'left', title: { display:true, text:'血糖値(mg/dL)' } },
-        y1: { min:0, max:40, position:'right', title:{ display:true, text:'インスリン量(U)' }, grid:{ drawOnChartArea:false } }
+        y1: { min: 0, max: 40, position: 'right', title: { display:true, text:'インスリン量(U)' }, grid: { drawOnChartArea: false } }
       }
     }
   });
 }
+
+// 月選択時にグラフを更新
+document.getElementById('monthSelector').addEventListener('change', function() {
+  selectedMonth = this.value;
+  updateGraph();
+});
 
 displayHistory();
 </script>
