@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>糖質・インスリン計算ツール（個人用）</title>
+
+<style>
+  body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+  label { display: block; margin-top: 10px; }
+  input, select { padding: 7px; width: 100%; font-size: 16px; }
+  button {
+    margin-top: 20px;
+    padding: 12px;
+    width: 100%;
+    font-size: 18px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+  }
+  .box {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 8px;
+  }
+  #result {
+    margin-top: 20px;
+    font-size: 18px;
+    padding: 15px;
+    background: #f0f8ff;
+    border-radius: 6px;
+  }
+  #historyList button {
+    margin-left: 10px;
+    padding: 3px 7px;
+    font-size: 12px;
+  }
+
+  /* スマホ向けデザイン */
+  @media (max-width: 600px) {
+    body { padding: 10px; font-size: 16px; }
+    input, select { width: 100%; font-size: 18px; }
+    button { width: 100%; font-size: 18px; }
+    .box { padding: 10px; }
+  }
+</style>
+
+</head>
+<body>
+
+<h1>糖質・インスリン計算ツール（個人用）</h1>
+
+<!-- 主食入力 -->
+<div class="box">
+  <h2>① 主食（グラムを入力）</h2>
+
+  <label>主食の種類：</label>
+  <select id="mainFood">
+    <option value="rice">お米</option>
+    <option value="bread">パン</option>
+    <option value="noodle">麺類</option>
+  </select>
+
+  <label>食べた量（g）：
+    <input id="mainGram" type="number" placeholder="例：150">
+  </label>
+</div>
+
+<!-- その他の食品 -->
+<div class="box">
+  <h2>② その他の食品</h2>
+
+  <label>食品名：
+    <input id="otherFood" type="text" placeholder="例：りんご、バナナなど">
+  </label>
+
+  <label>糖質量（g）：
+    <input id="otherCarbs" type="number" placeholder="食べた量から自分で計算して入力">
+  </label>
+</div>
+
+<!-- 設定 -->
+<div class="box">
+  <h2>③ あなたの設定</h2>
+
+  <label>カーボ比（g / 1U）※あなたの設定値：
+    <input id="carbRatio" type="number">
+  </label>
+
+  <label>現在血糖値（mg/dL）：
+    <input id="currentBg" type="number">
+  </label>
+
+  <label>目標血糖値（mg/dL）：
+    <input id="targetBg" type="number">
+  </label>
+
+  <label>補正係数（1Uで下がる血糖値）※あなたの設定値：
+    <input id="correctionFactor" type="number">
+  </label>
+</div>
+
+<button onclick="calculateAll()">インスリン量を計算する</button>
+
+<h2 id="result"></h2>
+
+<!-- 履歴 -->
+<h2>履歴</h2>
+<ul id="historyList"></ul>
+
+<script>
+// 主食ごとの糖質（100gあたりの目安）
+const carbTable = {
+  rice: 37,
+  bread: 44,
+  noodle: 25
+};
+
+// 計算メイン
+function calculateAll() {
+  const mainFood = document.getElementById("mainFood").value;
+  const gram = Number(document.getElementById("mainGram").value);
+
+  const mainCarbs = gram * (carbTable[mainFood] / 100);
+
+  const otherCarbs = Number(document.getElementById("otherCarbs").value) || 0;
+
+  const totalCarbs = mainCarbs + otherCarbs;
+
+  // ユーザー設定
+  const carbRatio = Number(document.getElementById("carbRatio").value);
+  const currentBg = Number(document.getElementById("currentBg").value);
+  const targetBg = Number(document.getElementById("targetBg").value);
+  const correctionFactor = Number(document.getElementById("correctionFactor").value);
+
+  const carbInsulin = totalCarbs / carbRatio;
+  const correctionInsulin = (currentBg - targetBg) / correctionFactor;
+
+  const totalInsulin = Math.max(carbInsulin + correctionInsulin, 0);
+
+  document.getElementById("result").innerHTML =
+    `■ 主食の糖質：${mainCarbs.toFixed(1)} g<br>
+     ■ その他の糖質：${otherCarbs.toFixed(1)} g<br>
+     ■ 合計糖質：${totalCarbs.toFixed(1)} g<br><br>
+     <b>あなたの設定値に基づく必要インスリン量：${totalInsulin.toFixed(2)} U</b>`;
+
+  // 履歴を保存
+  saveHistory({
+    date: new Date().toLocaleString(),
+    mainFood: mainFood,
+    totalCarbs: totalCarbs.toFixed(1),
+    insulin: totalInsulin.toFixed(2)
+  });
+}
+
+// 履歴保存
+function saveHistory(data) {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  history.push(data);
+  localStorage.setItem("history", JSON.stringify(history));
+  displayHistory();
+}
+
+// 履歴表示
+function displayHistory() {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  const list = document.getElementById("historyList");
+  list.innerHTML = "";
+
+  history.forEach((item, i) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${item.date}： 主食=${item.mainFood}、 糖質=${item.totalCarbs}g、 インスリン=${item.insulin}U
+      <button onclick="deleteHistory(${i})">削除</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+// 履歴削除
+function deleteHistory(i) {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  history.splice(i, 1);
+  localStorage.setItem("history", JSON.stringify(history));
+  displayHistory();
+}
+
+// 初期表示
+displayHistory();
+</script>
+
+</body>
+</html>
