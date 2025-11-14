@@ -1,40 +1,25 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>糖質・インスリン計算ツール</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; }
-    h1 { font-size: 24px; }
-    label { display: block; margin-top: 10px; font-size: 16px; }
-    input, select { padding: 7px; width: 100%; font-size: 16px; }
-    button {
-      margin-top: 10px;
-      padding: 10px;
-      width: 100%;
-      font-size: 16px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-    }
-    .box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px; }
-    #result { margin-top: 20px; font-size: 16px; padding: 15px; background: #f0f8ff; border-radius: 6px; }
-    #historyList { overflow-x: auto; margin-top: 20px; }
-    #historyList table { width: 100%; border-collapse: collapse; }
-    #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
-    #historyList th { background-color: #f4f4f4; }
-    #graphContainer { width: 100%; overflow-x: auto; margin-top: 20px; }
-
-    @media (max-width: 600px) {
-      body { padding: 10px; font-size: 14px; }
-      input, select { font-size: 16px; }
-      button { font-size: 16px; }
-      h1 { font-size: 20px; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>糖質・インスリン計算ツール</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; }
+  h1 { font-size: 24px; }
+  label { display: block; margin-top: 10px; font-size: 16px; }
+  input, select { padding: 7px; width: 100%; font-size: 16px; }
+  button { margin-top: 10px; padding: 10px; width: 100%; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 6px; }
+  .box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px; }
+  #result { margin-top: 20px; font-size: 16px; padding: 15px; background: #f0f8ff; border-radius: 6px; }
+  #historyList { overflow-x: auto; margin-top: 20px; }
+  #historyList table { width: 100%; border-collapse: collapse; }
+  #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
+  #historyList th { background-color: #f4f4f4; }
+  #graphContainer { width: 100%; overflow-x: auto; margin-top: 20px; }
+  canvas { min-height: 300px; } /* ここが重要 */
+</style>
 </head>
 <body>
 
@@ -117,23 +102,13 @@
 <script>
 const mealLabelMap = { morning: '朝', afternoon: '昼', evening: '夜' };
 const carbTable = { rice: 37, bread: 44, noodle: 25 };
-
 let history = JSON.parse(localStorage.getItem('history')) || [];
 let selectedMonth = '2025-11';
-
-// 前回入力値の保持
-let lastInsulinChange = { morning: '', afternoon: '', evening: '' };
-let lastCarbRatio = 12;
-let lastTargetBg = 100;
 
 function toggleCarbInput() {
   const food = document.getElementById('mainFood').value;
   const label = document.getElementById('otherCarbsLabel');
-  if(food === 'bread') {
-    label.textContent = 'パンの糖質量（g）：';
-  } else {
-    label.textContent = 'その他糖質量（g）：';
-  }
+  label.textContent = food === 'bread' ? 'パンの糖質量（g）：' : 'その他糖質量（g）：';
 }
 
 function calculateInsulin() {
@@ -147,11 +122,6 @@ function calculateInsulin() {
   const currentBg = Number(document.getElementById('currentBg').value);
   const targetBg = Number(document.getElementById('targetBg').value);
 
-  // 前回値の保存
-  lastInsulinChange[mealTime] = insulinChange;
-  lastCarbRatio = carbRatio;
-  lastTargetBg = targetBg;
-
   const mainCarbs = mainGram * (carbTable[mainFood] / 100);
   const totalCarbs = mainCarbs + otherCarbs;
   const carbInsulin = totalCarbs / carbRatio;
@@ -164,19 +134,10 @@ function calculateInsulin() {
     `■ 合計糖質：${totalCarbs.toFixed(1)} g<br>` +
     `■ 必要インスリン量：${totalInsulin.toFixed(1)} U`;
 
-  saveHistory({
-    date: date,
-    meal: mealTime,
-    mainFood: mainFood,
-    otherCarbs: otherCarbs.toFixed(1),
-    totalCarbs: totalCarbs.toFixed(1),
-    insulin: totalInsulin.toFixed(1),
-    bg: currentBg.toFixed(1)
-  });
+  saveHistory({ date, meal: mealTime, mainFood, otherCarbs: otherCarbs.toFixed(1), totalCarbs: totalCarbs.toFixed(1), insulin: totalInsulin.toFixed(1), bg: currentBg.toFixed(1) });
   displayHistory();
 }
 
-// 履歴保存・削除
 function saveHistory(entry) {
   history.push(entry);
   localStorage.setItem('history', JSON.stringify(history));
@@ -186,6 +147,7 @@ function deleteHistory(index) {
   history.splice(index, 1);
   localStorage.setItem('history', JSON.stringify(history));
   displayHistory();
+  updateGraph();
 }
 
 function displayHistory() {
@@ -227,7 +189,6 @@ let insulinChart = new Chart(ctx, {
   }
 });
 
-// グラフ更新
 function updateGraph() {
   const selectedMonthHistory = history.filter(entry => entry.date.startsWith(selectedMonth));
   const bgData = Array(30).fill(null);
@@ -244,7 +205,6 @@ function updateGraph() {
   insulinChart.update();
 }
 
-// 履歴ごとの「グラフに反映」ボタン
 function plotHistory(index) {
   const entry = history[index];
   const day = parseInt(entry.date.split('-')[2], 10);
