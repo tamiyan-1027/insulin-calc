@@ -1,221 +1,283 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>糖質・インスリン計算ツール</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>糖質・インスリン計算ツール（個人用）</title>
 
-<style>
-  body {
-    font-family: sans-serif;
-    padding: 10px;
-    max-width: 600px;
-    margin: auto;
-    font-size: 18px;
-  }
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+    label { display: block; margin-top: 10px; font-size: 18px; }
+    input, select { padding: 10px; width: 100%; font-size: 18px; }
+    button {
+      margin-top: 20px;
+      padding: 12px;
+      width: 100%;
+      font-size: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+    .box {
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 8px;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 20px;
+      padding: 15px;
+      background: #f0f8ff;
+      border-radius: 6px;
+    }
+    #historyList button {
+      margin-left: 10px;
+      padding: 3px 7px;
+      font-size: 14px;
+    }
 
-  h1 {
-    text-align: center;
-    font-size: 26px;
-  }
+    /* スマホ向けデザイン */
+    @media (max-width: 600px) {
+      body {
+        font-size: 20px;
+        padding: 15px;
+      }
+      input, select {
+        font-size: 20px;
+      }
+      button {
+        font-size: 22px;
+      }
+      .box {
+        padding: 12px;
+      }
+    }
 
-  /* タブ */
-  .tabs button {
-    width: 33.33%;
-    padding: 12px;
-    font-size: 18px;
-    border: none;
-    background: #ddd;
-  }
-
-  .tabs button.active {
-    background: #007bff;
-    color: white;
-  }
-
-  .tab-content {
-    display: none;
-    margin-top: 20px;
-  }
-
-  label {
-    display: block;
-    margin-top: 15px;
-    font-size: 18px;
-  }
-
-  input, select {
-    width: 100%;
-    padding: 10px;
-    font-size: 20px;
-    box-sizing: border-box;
-  }
-
-  button.main-btn {
-    width: 100%;
-    padding: 14px;
-    background: #007bff;
-    color: white;
-    border: none;
-    margin-top: 20px;
-    font-size: 20px;
-    border-radius: 8px;
-  }
-
-  #result {
-    padding: 15px;
-    margin-top: 20px;
-    background: #eef7ff;
-    border-radius: 8px;
-    font-size: 20px;
-  }
-
-</style>
+    /* タブのスタイル */
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tab.active {
+      background-color: #007bff;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>糖質・インスリン計算ツール</h1>
+<h1>糖質・インスリン計算ツール（個人用）</h1>
 
-<!-- タブ -->
+<!-- タブメニュー -->
 <div class="tabs">
-  <button onclick="openTab(1)" class="active">① インスリン計算</button>
-  <button onclick="openTab(2)">② 食べ物→糖質</button>
-  <button onclick="openTab(3)">③ グラフ</button>
+  <div class="tab active" onclick="showTab(0)">① インスリン計算</div>
+  <div class="tab" onclick="showTab(1)">② 糖質量と血糖値の計算</div>
+  <div class="tab" onclick="showTab(2)">③ 糖質とインスリン記録</div>
 </div>
 
-<!-- ①インスリン計算タブ -->
-<div id="tab1" class="tab-content" style="display:block;">
+<!-- ① インスリン計算タブ -->
+<div class="tab-content active" id="tab1">
+  <div class="box">
+    <h2>① 注射するインスリン量を計算</h2>
 
-  <h2>① 注射するインスリン量を計算</h2>
+    <label>食事の時間（朝・昼・夜）：</label>
+    <select id="mealTime">
+      <option value="morning">朝</option>
+      <option value="afternoon">昼</option>
+      <option value="evening">夜</option>
+    </select>
 
-  <!-- 朝昼夜ボタン -->
-  <label>◆ 食事の時間帯：</label>
-  <select id="mealTime">
-    <option value="morning">朝</option>
-    <option value="noon">昼</option>
-    <option value="night">夜</option>
-  </select>
+    <label>インスリン1単位で血糖値がどのくらい変化するか（mg/dL）：</label>
+    <input id="insulinEffect" type="number" value="30">
 
-  <!-- 朝昼夜ごとの補正係数 -->
-  <label>◆ 補正係数（1Uで下がる血糖値）※時間帯ごと：</label>
-  <input id="cf_morning" type="number" placeholder="朝の補正係数">
-  <input id="cf_noon" type="number" placeholder="昼の補正係数">
-  <input id="cf_night" type="number" placeholder="夜の補正係数">
+    <label>主食の種類：</label>
+    <select id="mainFood">
+      <option value="rice">お米</option>
+      <option value="bread">パン</option>
+      <option value="noodle">麺類</option>
+    </select>
 
-  <!-- 主食入力 -->
-  <label>◆ 主食：</label>
-  <select id="mainFood">
-    <option value="rice">ごはん</option>
-    <option value="bread">パン</option>
-    <option value="noodle">麺類</option>
-  </select>
+    <label>食べた量（g）：</label>
+    <input id="mainGram" type="number" placeholder="例：150">
 
-  <label>主食の量（g）：</label>
-  <input id="mainGram" type="number">
+    <label>その他の食べ物（糖質量）：</label>
+    <input id="otherFood" type="text" placeholder="例：りんご、バナナなど">
 
-  <!-- パン用の直接入力糖質 -->
-  <label>パンの場合：直接糖質を入力（任意）：</label>
-  <input id="breadCarb" type="number" placeholder="パンの糖質（任意）">
+    <label>その他の糖質量（g）：</label>
+    <input id="otherCarbs" type="number" placeholder="食べた量から自分で計算して入力">
 
-  <!-- その他食品 -->
-  <label>◆ その他の食品の糖質：</label>
-  <input id="otherCarbs" type="number" placeholder="他の食品の糖質（g）">
+    <label>カーボ比（g / 1U）：</label>
+    <input id="carbRatio" type="number" placeholder="例：15">
 
-  <!-- ユーザー設定 -->
-  <label>◆ カーボ比（g/U）：</label>
-  <input id="carbRatio" type="number">
+    <label>現在血糖値（mg/dL）：</label>
+    <input id="currentBg" type="number" placeholder="例：120">
 
-  <label>◆ 現在血糖値：</label>
-  <input id="currentBg" type="number">
+    <label>目標血糖値（mg/dL）：</label>
+    <input id="targetBg" type="number" placeholder="例：100">
 
-  <label>◆ 目標血糖値：</label>
-  <input id="targetBg" type="number">
+    <button onclick="calculateAll()">インスリン量を計算する</button>
 
-  <button class="main-btn" onclick="calculateInsulin()">インスリン量を計算</button>
-
-  <div id="result"></div>
-
+    <h2 id="result"></h2>
+  </div>
 </div>
 
-<!-- ②タブ（空 placeholder） -->
-<div id="tab2" class="tab-content">
-  <h2>② 食べ物→糖質の計算（次のステップで実装）</h2>
+<!-- ② 食べ物と血糖値計算タブ -->
+<div class="tab-content" id="tab2">
+  <div class="box">
+    <h2>② 食べ物と糖質量を入力して血糖値を計算</h2>
+    <!-- 同様に入力フォームを設ける -->
+  </div>
 </div>
 
-<!-- ③タブ（空 placeholder） -->
-<div id="tab3" class="tab-content">
-  <h2>③ グラフ（次のステップで実装）</h2>
+<!-- ③ 記録とグラフタブ -->
+<div class="tab-content" id="tab3">
+  <h2>③ 糖質とインスリンの記録とグラフ</h2>
+  <div class="box">
+    <h3>記録履歴</h3>
+    <ul id="historyList"></ul>
+  </div>
+
+  <!-- グラフ表示用のプレースホルダ -->
+  <div class="box">
+    <h3>インスリン量と糖質記録グラフ</h3>
+    <canvas id="insulinChart" width="400" height="200"></canvas>
+  </div>
 </div>
 
 <script>
-// タブ操作
-function openTab(num) {
-  document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none");
-  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+// タブ切り替え
+function showTab(tabIndex) {
+  const tabs = document.querySelectorAll('.tab');
+  const tabContents = document.querySelectorAll('.tab-content');
 
-  document.getElementById("tab" + num).style.display = "block";
-  document.querySelectorAll(".tabs button")[num - 1].classList.add("active");
+  tabs.forEach((tab, index) => {
+    tab.classList.toggle('active', index === tabIndex);
+  });
+
+  tabContents.forEach((content, index) => {
+    content.classList.toggle('active', index === tabIndex);
+  });
 }
 
-// 主食の糖質表
+// 主食ごとの糖質（100gあたりの目安）
 const carbTable = {
-  rice: 0.37,
-  bread: 0.44,
-  noodle: 0.25
+  rice: 37,
+  bread: 44,
+  noodle: 25
 };
 
-// 初期化：保存値をロード
-window.onload = function() {
-  ["carbRatio","targetBg","cf_morning","cf_noon","cf_night"].forEach(id => {
-    if(localStorage.getItem(id)) document.getElementById(id).value = localStorage.getItem(id);
-  });
-};
+// 計算メイン
+function calculateAll() {
+  const mainFood = document.getElementById("mainFood").value;
+  const gram = Number(document.getElementById("mainGram").value);
+  const mainCarbs = gram * (carbTable[mainFood] / 100);
 
-// 計算
-function calculateInsulin() {
+  const otherCarbs = Number(document.getElementById("otherCarbs").value) || 0;
+  const totalCarbs = mainCarbs + otherCarbs;
 
-  // 保存
-  ["carbRatio","targetBg","cf_morning","cf_noon","cf_night"].forEach(id => {
-    localStorage.setItem(id, document.getElementById(id).value);
-  });
-
-  const meal = document.getElementById("mealTime").value;
   const carbRatio = Number(document.getElementById("carbRatio").value);
   const currentBg = Number(document.getElementById("currentBg").value);
   const targetBg = Number(document.getElementById("targetBg").value);
+  const correctionFactor = Number(document.getElementById("correctionFactor").value);
 
-  // 時間帯の補正係数
-  const cf = {
-    morning: Number(document.getElementById("cf_morning").value),
-    noon: Number(document.getElementById("cf_noon").value),
-    night: Number(document.getElementById("cf_night").value)
-  }[meal];
+  const carbInsulin = totalCarbs / carbRatio;
+  const correctionInsulin = (currentBg - targetBg) / correctionFactor;
 
-  // 主食
-  const mainType = document.getElementById("mainFood").value;
-  let mainCarb = 0;
-
-  if (mainType === "bread" && document.getElementById("breadCarb").value) {
-    mainCarb = Number(document.getElementById("breadCarb").value);
-  } else {
-    const gram = Number(document.getElementById("mainGram").value);
-    mainCarb = gram * carbTable[mainType];
-  }
-
-  const otherCarb = Number(document.getElementById("otherCarbs").value) || 0;
-  const totalCarb = mainCarb + otherCarb;
-
-  // インスリン
-  const carbInsulin = totalCarb / carbRatio;
-  const correctionInsulin = (currentBg - targetBg) / cf;
   const totalInsulin = Math.max(carbInsulin + correctionInsulin, 0);
 
   document.getElementById("result").innerHTML =
-    `主食の糖質：${mainCarb.toFixed(1)} g<br>
-     他の糖質：${otherCarb.toFixed(1)} g<br>
-     合計糖質：<b>${totalCarb.toFixed(1)} g</b><br><br>
-     必要インスリン量：<b>${totalInsulin.toFixed(2)} U</b>`;
+    `■ 主食の糖質：${mainCarbs.toFixed(1)} g<br>
+     ■ その他の糖質：${otherCarbs.toFixed(1)} g<br>
+     ■ 合計糖質：${totalCarbs.toFixed(1)} g<br><br>
+     <b>あなたの設定値に基づく必要インスリン量：${totalInsulin.toFixed(2)} U</b>`;
+
+  // 履歴保存
+  saveHistory({
+    date: new Date().toLocaleString(),
+    mainFood: mainFood,
+    totalCarbs: totalCarbs.toFixed(1),
+    insulin: totalInsulin.toFixed(2)
+  });
 }
+
+// 履歴保存
+function saveHistory(data) {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  history.push(data);
+  localStorage.setItem("history", JSON.stringify(history));
+  displayHistory();
+}
+
+// 履歴表示
+function displayHistory() {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  const historyList = document.getElementById("historyList");
+  historyList.innerHTML = "";
+
+  history.forEach(entry => {
+    const li = document.createElement("li");
+    li.innerHTML = `${entry.date}: 主食=${entry.mainFood}, 糖質=${entry.totalCarbs}g, インスリン量=${entry.insulin}U`;
+    historyList.appendChild(li);
+  });
+}
+
+// 初期表示
+displayHistory();
+</script>
+
+<!-- グラフ描画用 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('insulinChart').getContext('2d');
+  const insulinChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [], // 時間などを表示
+      datasets: [{
+        label: 'インスリン量',
+        data: [], // 記録されたインスリン量
+        borderColor: 'rgba(75, 192, 192, 1)',
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return 'インスリン量: ' + context.raw + ' U';
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
 </script>
 
 </body>
