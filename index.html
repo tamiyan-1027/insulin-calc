@@ -91,7 +91,7 @@
 <button onclick="reflectToRecord()">表に反映</button>
 
 <h2>② 血糖値 & インスリン記録表</h2>
-<div class="box" id="recordSection">
+<div class="box">
   <label>年</label>
   <select id="yearSelector"></select>
   <label>月</label>
@@ -122,12 +122,9 @@
   </div>
 </div>
 
-<!-- PDF化ボタン -->
-<button onclick="downloadPDF()" style="margin-top:20px; padding:10px; font-size:16px; border-radius:5px; background-color:#28a745; color:white; border:none; cursor:pointer;">
-  記録表をPDF化
-</button>
+<button onclick="downloadPDF()">PDF化</button>
 
-<!-- html2pdf.js の読み込み -->
+<!-- html2pdf CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
@@ -273,7 +270,20 @@ function updateRecord(year,month,day,meal,type,value){
 }
 
 function downloadPDF(){
-  const element = document.getElementById('recordTable');
+  const originalTable = document.getElementById('recordTable');
+  const cloneTable = originalTable.cloneNode(true);
+
+  cloneTable.querySelectorAll('input').forEach(input => {
+    const span = document.createElement('span');
+    span.textContent = input.value;
+    span.style.display = 'inline-block';
+    span.style.width = input.offsetWidth + 'px';
+    span.style.height = input.offsetHeight + 'px';
+    span.style.textAlign = 'center';
+    span.style.fontSize = '12px';
+    input.parentNode.replaceChild(span, input);
+  });
+
   const opt = {
     margin:       0.5,
     filename:     '血糖値・インスリン記録.pdf',
@@ -281,7 +291,7 @@ function downloadPDF(){
     html2canvas:  { scale: 2 },
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
-  html2pdf().set(opt).from(element).save();
+  html2pdf().set(opt).from(cloneTable).save();
 }
 
 document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
@@ -292,6 +302,7 @@ init();
 
 </body>
 </html>
+
 
 
 
