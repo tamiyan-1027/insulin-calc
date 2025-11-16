@@ -253,24 +253,29 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 async function exportRecordPDF(){
   const { jsPDF } = window.jspdf;
   const recordContainer = document.getElementById('recordContainer');
+  
   const canvas = await html2canvas(recordContainer, { scale:2 });
   const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p','pt','a4');
+  
+  const pdf = new jsPDF('p','mm','a4'); // mm単位
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
-  const imgProps = { width: canvas.width, height: canvas.height };
-  const ratio = Math.min(pdfWidth/imgProps.width, pdfHeight/imgProps.height);
-  let heightLeft = canvas.height * ratio;
-  let position = 0;
-
-  pdf.addImage(imgData,'PNG',0,position,canvas.width*ratio,canvas.height*ratio);
-  heightLeft -= pdfHeight;
+  
+  const margin = 10; // 左右上下の余白
+  const imgWidth = pdfWidth - 2*margin;
+  const imgHeight = canvas.height * (imgWidth / canvas.width);
+  
+  let heightLeft = imgHeight;
+  let position = margin;
+  
+  pdf.addImage(imgData,'PNG', margin, position, imgWidth, imgHeight);
+  heightLeft -= (pdfHeight - 2*margin);
 
   while(heightLeft > 0){
     pdf.addPage();
-    position -= pdfHeight;
-    pdf.addImage(imgData,'PNG',0,position,canvas.width*ratio,canvas.height*ratio);
-    heightLeft -= pdfHeight;
+    position = margin - (imgHeight - heightLeft);
+    pdf.addImage(imgData,'PNG', margin, position, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - 2*margin);
   }
 
   pdf.save(`記録表_${document.getElementById('yearSelector').value}_${document.getElementById('monthSelector').value}.pdf`);
