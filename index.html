@@ -122,7 +122,8 @@
   </div>
 </div>
 
-<button onclick="downloadPDF()">PDF化</button>
+<!-- PDF ダウンロードボタン -->
+<button onclick="downloadPDF()">PDFとして保存</button>
 
 <!-- html2pdf CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -269,7 +270,13 @@ function updateRecord(year,month,day,meal,type,value){
   localStorage.setItem('records', JSON.stringify(records));
 }
 
-function downloadPDF(){
+document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
+document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
+
+init();
+
+/* PDF ダウンロード関数 */
+function downloadPDF() {
   const originalTable = document.getElementById('recordTable');
   const cloneTable = originalTable.cloneNode(true);
 
@@ -277,27 +284,30 @@ function downloadPDF(){
     const span = document.createElement('span');
     span.textContent = input.value;
     span.style.display = 'inline-block';
-    span.style.width = input.offsetWidth + 'px';
-    span.style.height = input.offsetHeight + 'px';
+    span.style.width = '100%';
     span.style.textAlign = 'center';
     span.style.fontSize = '12px';
     input.parentNode.replaceChild(span, input);
   });
 
+  const pdfContainer = document.createElement('div');
+  pdfContainer.style.position = 'absolute';
+  pdfContainer.style.left = '-9999px';
+  pdfContainer.appendChild(cloneTable);
+  document.body.appendChild(pdfContainer);
+
   const opt = {
     margin:       0.5,
     filename:     '血糖値・インスリン記録.pdf',
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2 },
+    html2canvas:  { scale: 2, logging: true, useCORS: true },
     jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
   };
-  html2pdf().set(opt).from(cloneTable).save();
+
+  html2pdf().set(opt).from(cloneTable).save().finally(() => {
+    document.body.removeChild(pdfContainer);
+  });
 }
-
-document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
-document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
-
-init();
 </script>
 
 </body>
