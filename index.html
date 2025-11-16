@@ -122,12 +122,10 @@
   </div>
 </div>
 
-<!-- PDF ダウンロードボタン -->
-<button onclick="downloadPDF()">PDFとして保存</button>
+<!-- PDF化ボタン -->
+<button onclick="downloadPDF()">PDFをダウンロード</button>
 
-<!-- html2pdf CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
 const mealKeys = ['morning','afternoon','evening','other'];
 const mealLabels = { morning:'朝', afternoon:'昼', evening:'夜', other:'その他' };
@@ -275,7 +273,7 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 
 init();
 
-/* PDF ダウンロード関数 */
+// PDF化関数（修正版）
 function downloadPDF() {
   const originalTable = document.getElementById('recordTable');
   const cloneTable = originalTable.cloneNode(true);
@@ -293,15 +291,16 @@ function downloadPDF() {
   const pdfContainer = document.createElement('div');
   pdfContainer.style.position = 'absolute';
   pdfContainer.style.left = '-9999px';
+  pdfContainer.style.top = '0';
   pdfContainer.appendChild(cloneTable);
   document.body.appendChild(pdfContainer);
 
   const opt = {
-    margin:       0.5,
+    margin:       0.3,
     filename:     '血糖値・インスリン記録.pdf',
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, logging: true, useCORS: true },
-    jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+    html2canvas:  { scale: 2, useCORS: true, logging: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
   };
 
   html2pdf().set(opt).from(cloneTable).save().finally(() => {
@@ -312,6 +311,7 @@ function downloadPDF() {
 
 </body>
 </html>
+
 
 
 
