@@ -24,7 +24,7 @@
 
 <h1>糖質・インスリン計算ツール</h1>
 
-<div class="box">
+<div class="box" id="calculatorSection">
   <h2>① インスリン計算</h2>
 
   <label>日付を選択</label>
@@ -73,25 +73,8 @@
   <div id="result"></div>
 </div>
 
-<h2>計算履歴（最新3件）</h2>
-<div class="scroll-container">
-  <table id="historyTable">
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>食事時間</th>
-        <th>主食</th>
-        <th>合計糖質(g)</th>
-        <th>インスリン量(U)</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-<button onclick="reflectToRecord()">表に反映</button>
-
 <h2>② 血糖値 & インスリン記録表</h2>
-<div class="box">
+<div class="box" id="recordSection">
   <label>年</label>
   <select id="yearSelector"></select>
   <label>月</label>
@@ -122,10 +105,12 @@
   </div>
 </div>
 
-<!-- PDF化ボタン -->
-<button onclick="downloadPDF()">PDFをダウンロード</button>
+<button onclick="downloadPDF()">PDFとして保存</button>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- jsPDF & html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <script>
 const mealKeys = ['morning','afternoon','evening','other'];
 const mealLabels = { morning:'朝', afternoon:'昼', evening:'夜', other:'その他' };
@@ -133,7 +118,6 @@ const carbTable = { rice:37, bread:44, noodle:25 };
 let lastInsulinChange = { morning:30, afternoon:30, evening:30, other:30 };
 let lastCarbRatio = { morning:12, afternoon:12, evening:12, other:12 };
 let lastTargetBg = 100;
-let history = JSON.parse(localStorage.getItem('history')) || [];
 let records = JSON.parse(localStorage.getItem('records')) || {};
 
 function init() {
@@ -152,7 +136,6 @@ function init() {
   monthSelect.value = now.getMonth()+1;
 
   loadLastValues();
-  displayHistory();
   generateRecordTable();
 }
 
@@ -201,37 +184,14 @@ function calculateInsulin(){
   document.getElementById('result').innerHTML = 
     `合計糖質: ${totalCarbs.toFixed(1)} g<br>必要インスリン量: ${totalInsulin.toFixed(1)} U`;
 
-  const entry = {date, meal:mealTime, mainFood, totalCarbs:totalCarbs.toFixed(1), insulin:totalInsulin.toFixed(1)};
-  history.unshift(entry);
-  if(history.length>3) history.pop();
-  localStorage.setItem('history', JSON.stringify(history));
-  displayHistory();
-}
-
-function displayHistory(){
-  const tbody = document.querySelector('#historyTable tbody');
-  tbody.innerHTML='';
-  history.forEach(e=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML=`<td>${e.date}</td><td>${mealLabels[e.meal]}</td><td>${e.mainFood}</td><td>${e.totalCarbs}</td><td>${e.insulin}</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-function reflectToRecord(){
-  const date = document.getElementById('dateSelector').value;
-  if(!date) { alert('日付を選んでください'); return; }
-  const mealTime = document.getElementById('mealTime').value;
-  const currentBg = Number(document.getElementById('currentBg').value);
-  const insulin = Number(document.querySelector('#result').innerHTML.match(/必要インスリン量: ([0-9.]+)/)[1]);
-
+  const dateKey = date;
   const year = date.split('-')[0];
   const month = parseInt(date.split('-')[1],10);
 
   if(!records[year]) records[year]={};
   if(!records[year][month]) records[year][month]={};
-  records[year][month][date] = records[year][month][date]||{};
-  records[year][month][date][mealTime] = {bg:currentBg, insulin:insulin};
+  records[year][month][dateKey] = records[year][month][dateKey]||{};
+  records[year][month][dateKey][mealTime] = {bg:currentBg, insulin:totalInsulin};
   localStorage.setItem('records', JSON.stringify(records));
   generateRecordTable();
 }
@@ -273,44 +233,27 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 
 init();
 
-// PDF化関数（修正版）
-function downloadPDF() {
-  const originalTable = document.getElementById('recordTable');
-  const cloneTable = originalTable.cloneNode(true);
+// PDF出力処理（htmlを画像化してPDFに貼り付け）
+async function downloadPDF(){
+  const { jsPDF } = window.jspdf;
 
-  cloneTable.querySelectorAll('input').forEach(input => {
-    const span = document.createElement('span');
-    span.textContent = input.value;
-    span.style.display = 'inline-block';
-    span.style.width = '100%';
-    span.style.textAlign = 'center';
-    span.style.fontSize = '12px';
-    input.parentNode.replaceChild(span, input);
-  });
+  const doc = new jsPDF('p','mm','a4');
+  const element = document.body; // body全体を対象
+  const canvas = await html2canvas(element, {scale:2});
+  const imgData = canvas.toDataURL('image/png');
 
-  const pdfContainer = document.createElement('div');
-  pdfContainer.style.position = 'absolute';
-  pdfContainer.style.left = '-9999px';
-  pdfContainer.style.top = '0';
-  pdfContainer.appendChild(cloneTable);
-  document.body.appendChild(pdfContainer);
+  const imgProps = doc.getImageProperties(imgData);
+  const pdfWidth = doc.internal.pageSize.getWidth();
+  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-  const opt = {
-    margin:       0.3,
-    filename:     '血糖値・インスリン記録.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-  };
-
-  html2pdf().set(opt).from(cloneTable).save().finally(() => {
-    document.body.removeChild(pdfContainer);
-  });
+  doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+  doc.save('insulin_record.pdf');
 }
 </script>
 
 </body>
 </html>
+
 
 
 
