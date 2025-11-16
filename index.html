@@ -4,226 +4,312 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>糖質・インスリン計算ツール</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
   body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; }
   h1 { font-size: 24px; }
-  label { display: block; margin-top: 10px; font-size: 16px; }
-  input, select { padding: 7px; width: 100%; font-size: 16px; }
-  button { margin-top: 10px; padding: 10px; width: 100%; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 6px; }
-  .box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px; }
-  #result { margin-top: 20px; font-size: 16px; padding: 15px; background: #f0f8ff; border-radius: 6px; }
-  #historyList { overflow-x: auto; margin-top: 20px; }
-  #historyList table { width: 100%; border-collapse: collapse; }
-  #historyList td, th { padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
-  #historyList th { background-color: #f4f4f4; }
-  #graphContainer { width: 100%; overflow-x: auto; margin-top: 20px; }
-  canvas { min-height: 300px; } /* ここが重要 */
+  h2 { margin-top: 30px; font-size: 20px; }
+  label { display: block; margin-top: 10px; }
+  input, select { padding: 8px; width: 100%; font-size: 16px; }
+  button {
+    margin-top: 15px; padding: 12px; width: 100%;
+    background: #007bff; color: white; border: none; font-size: 18px;
+    border-radius: 6px;
+  }
+  .box {
+    border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px;
+  }
+  #historyTable { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  #historyTable th, #historyTable td {
+    border: 1px solid #ddd; padding: 6px; text-align: center; font-size: 14px;
+  }
+  #historyTable th { background: #f0f0f0; }
+
+  /* 記録表 */
+  #recordTable { width: 1400px; border-collapse: collapse; }
+  #recordWrapper { overflow-x: auto; }
+
+  #recordTable th, #recordTable td {
+    border: 1px solid #ccc; padding: 4px; text-align: center; font-size: 14px;
+  }
+  #recordTable th { background: #f8f8f8; }
+
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    h1 { font-size: 20px; }
+  }
 </style>
 </head>
-<body>
 
+<body>
 <h1>糖質・インスリン計算ツール</h1>
 
+<!-- ------------------ ① 計算エリア ------------------ -->
 <div class="box">
-  <h2>① インスリン計算</h2>
+<h2>① インスリン計算</h2>
 
-  <label>日付を選択：</label>
-  <input type="date" id="dateSelector" />
+<label>日付：</label>
+<input type="date" id="calcDate">
 
-  <label>食事時間：</label>
-  <select id="mealTime">
-    <option value="morning">朝</option>
-    <option value="afternoon">昼</option>
-    <option value="evening">夜</option>
-  </select>
+<label>食事時間：</label>
+<select id="mealTime">
+  <option value="morning">朝</option>
+  <option value="noon">昼</option>
+  <option value="evening">夜</option>
+  <option value="other">その他</option>
+</select>
 
-  <label>インスリン1単位で変化する血糖値（mg/dL）：</label>
-  <input id="insulinChange" type="number" placeholder="例：30" />
+<label>インスリン1Uで変化する血糖値（mg/dL）</label>
+<input type="number" id="insulinChange">
 
-  <label>主食の種類：</label>
-  <select id="mainFood" onchange="toggleCarbInput()">
-    <option value="rice">お米</option>
-    <option value="bread">パン</option>
-    <option value="noodle">麺類</option>
-  </select>
+<label>主食の種類：</label>
+<select id="mainFood" onchange="toggleMainFoodMode()">
+  <option value="rice">お米</option>
+  <option value="bread">パン</option>
+  <option value="noodle">麺</option>
+</select>
 
-  <label>主食量（g）：</label>
-  <input id="mainGram" type="number" placeholder="例：150" />
+<label>主食の量（g）：</label>
+<input type="number" id="mainGram">
 
-  <label id="otherCarbsLabel">その他糖質量（g）：</label>
-  <input id="otherCarbs" type="number" placeholder="糖質を入力" />
+<label>主食の糖質量（g）：</label>
+<input type="number" id="mainCarb">
 
-  <label>カーボ比（g / 1U）：</label>
-  <input id="carbRatio" type="number" value="12" />
+<label>その他の食べ物（複数可）：</label>
+<input type="text" id="otherFood" placeholder="例：りんご、バナナ">
 
-  <label>現在血糖値（mg/dL）：</label>
-  <input id="currentBg" type="number" />
+<label>その他の糖質量（g）：</label>
+<input type="number" id="otherCarb">
 
-  <label>目標血糖値（mg/dL）：</label>
-  <input id="targetBg" type="number" value="100" />
+<label>カーボ比（g/1U）：</label>
+<input type="number" id="carbRatio">
 
-  <button onclick="calculateInsulin()">インスリン量を計算する</button>
+<label>現在血糖値（mg/dL）：</label>
+<input type="number" id="currentBg">
 
-  <div id="result"></div>
+<label>目標血糖値（mg/dL）：</label>
+<input type="number" id="targetBg">
+
+<button onclick="calculateInsulin()">インスリン計算</button>
+
+<div id="result" style="margin-top:15px; font-size:18px;"></div>
+
+<h3>計算履歴（最新3件）</h3>
+<table id="historyTable">
+  <thead>
+    <tr>
+      <th>日付</th><th>時間</th><th>主食</th><th>糖質(g)</th><th>Ins(U)</th>
+    </tr>
+  </thead>
+  <tbody id="historyBody"></tbody>
+</table>
+
+<button onclick="reflectToTable()">→ この計算結果を記録表へ反映</button>
+
 </div>
 
-<h2>履歴</h2>
-<div id="historyList">
-  <table>
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>食事時間</th>
-        <th>主食</th>
-        <th>その他糖質量(g)</th>
-        <th>合計糖質量(g)</th>
-        <th>必要インスリン量(U)</th>
-        <th>グラフに反映</th>
-        <th>削除</th>
-      </tr>
-    </thead>
-    <tbody id="historyTable"></tbody>
-  </table>
-</div>
+<!-- ------------------ ② 記録表 ------------------ -->
+<h2>② 血糖値 & インスリン記録表</h2>
 
-<h2>② 血糖値・インスリン量グラフ</h2>
-<div class="month-selector">
-  <label>月を選択：</label>
-  <select id="monthSelector">
-    <option value="2025-11">2025年11月</option>
-    <option value="2025-12">2025年12月</option>
-  </select>
-</div>
-<div id="graphContainer">
-  <canvas id="insulinChart"></canvas>
+<label>年：</label>
+<select id="yearSelect" onchange="drawRecordTable()">
+  <option>2025</option>
+  <option>2026</option>
+  <option>2027</option>
+</select>
+
+<label>月：</label>
+<select id="monthSelect" onchange="drawRecordTable()">
+  <!-- 1〜12 を生成 -->
+  <script>
+    for(let i=1;i<=12;i++){
+      document.write(`<option value="${i}">${i}</option>`);
+    }
+  </script>
+</select>
+
+<div id="recordWrapper">
+  <table id="recordTable"></table>
 </div>
 
 <script>
-const mealLabelMap = { morning: '朝', afternoon: '昼', evening: '夜' };
-const carbTable = { rice: 37, bread: 44, noodle: 25 };
-let history = JSON.parse(localStorage.getItem('history')) || [];
-let selectedMonth = '2025-11';
+/* ---------------------------------
+   ローカル保存データ
+-----------------------------------*/
+let history = JSON.parse(localStorage.getItem("history") || "[]");
+let records = JSON.parse(localStorage.getItem("records") || "{}");
 
-function toggleCarbInput() {
-  const food = document.getElementById('mainFood').value;
-  const label = document.getElementById('otherCarbsLabel');
-  label.textContent = food === 'bread' ? 'パンの糖質量（g）：' : 'その他糖質量（g）：';
+/* ---------------------------------
+   ① 主食入力切替
+-----------------------------------*/
+function toggleMainFoodMode(){
+  // 何もしない（将来拡張用）
 }
 
-function calculateInsulin() {
-  const date = document.getElementById('dateSelector').value;
-  const mealTime = document.getElementById('mealTime').value;
-  const insulinChange = Number(document.getElementById('insulinChange').value);
-  const mainFood = document.getElementById('mainFood').value;
-  const mainGram = Number(document.getElementById('mainGram').value);
-  const otherCarbs = Number(document.getElementById('otherCarbs').value) || 0;
-  const carbRatio = Number(document.getElementById('carbRatio').value);
-  const currentBg = Number(document.getElementById('currentBg').value);
-  const targetBg = Number(document.getElementById('targetBg').value);
+/* ---------------------------------
+   ① 計算処理
+-----------------------------------*/
+function calculateInsulin(){
+  const date = document.getElementById("calcDate").value;
+  const meal = document.getElementById("mealTime").value;
 
-  const mainCarbs = mainGram * (carbTable[mainFood] / 100);
-  const totalCarbs = mainCarbs + otherCarbs;
-  const carbInsulin = totalCarbs / carbRatio;
-  const correctionInsulin = (currentBg - targetBg) / insulinChange;
-  const totalInsulin = Math.max(carbInsulin + correctionInsulin, 0);
+  const insulinChange = Number(document.getElementById("insulinChange").value);
 
-  document.getElementById('result').innerHTML =
-    `■ 主食の糖質：${mainCarbs.toFixed(1)} g<br>` +
-    `■ その他糖質：${otherCarbs.toFixed(1)} g<br>` +
-    `■ 合計糖質：${totalCarbs.toFixed(1)} g<br>` +
-    `■ 必要インスリン量：${totalInsulin.toFixed(1)} U`;
+  const mainFood = document.getElementById("mainFood").value;
+  const mainGram = Number(document.getElementById("mainGram").value);
+  const mainCarbInput = Number(document.getElementById("mainCarb").value);
 
-  saveHistory({ date, meal: mealTime, mainFood, otherCarbs: otherCarbs.toFixed(1), totalCarbs: totalCarbs.toFixed(1), insulin: totalInsulin.toFixed(1), bg: currentBg.toFixed(1) });
-  displayHistory();
+  const otherCarb = Number(document.getElementById("otherCarb").value);
+
+  const carbRatio = Number(document.getElementById("carbRatio").value);
+  const currentBg = Number(document.getElementById("currentBg").value);
+  const targetBg = Number(document.getElementById("targetBg").value);
+
+  // 主食糖質量の計算（優先順位：主食糖質 ＞ 主食量）
+  const carbTable = { rice:37, bread:44, noodle:25 };
+  let mainCarb = mainCarbInput ? mainCarbInput : mainGram * carbTable[mainFood] / 100;
+
+  const totalCarb = mainCarb + otherCarb;
+
+  const insulinCarb = totalCarb / carbRatio;
+  const insulinCorr = (currentBg - targetBg) / insulinChange;
+  const insulin = Math.max(0, insulinCarb + insulinCorr);
+
+  document.getElementById("result").innerHTML =
+    `合計糖質：${totalCarb.toFixed(1)} g<br>
+     インスリン必要量：<b>${insulin.toFixed(1)} U</b>`;
+
+  // 履歴保存（3件まで）
+  const entry = {
+    date, meal, mainFood,
+    carb: totalCarb.toFixed(1),
+    insulin: insulin.toFixed(1)
+  };
+
+  history.unshift(entry);
+  if(history.length > 3) history.pop();
+  localStorage.setItem("history", JSON.stringify(history));
+  renderHistory();
 }
 
-function saveHistory(entry) {
-  history.push(entry);
-  localStorage.setItem('history', JSON.stringify(history));
+/* ---------------------------------
+   履歴表示
+-----------------------------------*/
+function renderHistory(){
+  const tbody = document.getElementById("historyBody");
+  tbody.innerHTML = "";
+  history.forEach(h=>{
+    tbody.innerHTML += `
+      <tr>
+        <td>${h.date}</td>
+        <td>${convertMealLabel(h.meal)}</td>
+        <td>${h.mainFood}</td>
+        <td>${h.carb}</td>
+        <td>${h.insulin}</td>
+      </tr>`;
+  });
 }
 
-function deleteHistory(index) {
-  history.splice(index, 1);
-  localStorage.setItem('history', JSON.stringify(history));
-  displayHistory();
-  updateGraph();
+function convertMealLabel(m){
+  return {morning:"朝", noon:"昼", evening:"夜", other:"その他"}[m];
 }
 
-function displayHistory() {
-  const tbody = document.getElementById('historyTable');
-  tbody.innerHTML = '';
-  history.forEach((entry, index) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${entry.date}</td>
-      <td>${mealLabelMap[entry.meal]}</td>
-      <td>${entry.mainFood}</td>
-      <td>${entry.otherCarbs}</td>
-      <td>${entry.totalCarbs}</td>
-      <td>${entry.insulin}</td>
-      <td><button onclick="plotHistory(${index})">グラフに反映</button></td>
-      <td><button onclick="deleteHistory(${index})">削除</button></td>
+/* ---------------------------------
+   表に反映
+-----------------------------------*/
+function reflectToTable(){
+  if(history.length === 0){
+    alert("計算履歴がありません");
+    return;
+  }
+
+  const latest = history[0];
+
+  const key = `${latest.date}`;
+  if(!records[key]) records[key] = {
+    morning:{bg:"",ins:""},
+    noon:{bg:"",ins:""},
+    evening:{bg:"",ins:""},
+    other:{bg:"",ins:""},
+    memo:""
+  };
+
+  records[key][latest.meal].bg = ""; // BG は計算にないため空欄
+  records[key][latest.meal].ins = latest.insulin;
+
+  localStorage.setItem("records", JSON.stringify(records));
+
+  drawRecordTable();
+  alert("反映しました");
+}
+
+/* ---------------------------------
+   ② 記録表の生成
+-----------------------------------*/
+function drawRecordTable(){
+  const year = document.getElementById("yearSelect").value;
+  const month = Number(document.getElementById("monthSelect").value);
+
+  const days = new Date(year, month, 0).getDate();
+
+  let html = "<tr><th>日</th><th>朝 BG</th><th>朝Ins</th><th>昼 BG</th><th>昼Ins</th><th>夜 BG</th><th>夜Ins</th><th>その他 BG</th><th>その他Ins</th><th>メモ</th></tr>";
+
+  for(let d=1; d<=days; d++){
+    const dateKey = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    if(!records[dateKey]){
+      records[dateKey] = {
+        morning:{bg:"",ins:""},
+        noon:{bg:"",ins:""},
+        evening:{bg:"",ins:""},
+        other:{bg:"",ins:""},
+        memo:""
+      };
+    }
+
+    const r = records[dateKey];
+    html += `
+      <tr>
+        <td>${d}</td>
+        <td contenteditable onblur="updateRecord('${dateKey}','morning','bg',this.innerText)">${r.morning.bg}</td>
+        <td contenteditable onblur="updateRecord('${dateKey}','morning','ins',this.innerText)">${r.morning.ins}</td>
+
+        <td contenteditable onblur="updateRecord('${dateKey}','noon','bg',this.innerText)">${r.noon.bg}</td>
+        <td contenteditable onblur="updateRecord('${dateKey}','noon','ins',this.innerText)">${r.noon.ins}</td>
+
+        <td contenteditable onblur="updateRecord('${dateKey}','evening','bg',this.innerText)">${r.evening.bg}</td>
+        <td contenteditable onblur="updateRecord('${dateKey}','evening','ins',this.innerText)">${r.evening.ins}</td>
+
+        <td contenteditable onblur="updateRecord('${dateKey}','other','bg',this.innerText)">${r.other.bg}</td>
+        <td contenteditable onblur="updateRecord('${dateKey}','other','ins',this.innerText)">${r.other.ins}</td>
+
+        <td contenteditable onblur="updateRecordMemo('${dateKey}',this.innerText)">${r.memo}</td>
+      </tr>
     `;
-    tbody.appendChild(tr);
-  });
-}
-
-// グラフ初期化
-const ctx = document.getElementById('insulinChart').getContext('2d');
-let insulinChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: Array.from({ length: 30 }, (_, i) => `${i + 1}日`),
-    datasets: [
-      { label: '血糖値(mg/dL)', data: Array(30).fill(null), borderColor: 'red', yAxisID: 'y' },
-      { label: 'インスリン量(U)', data: Array(30).fill(null), borderColor: 'blue', yAxisID: 'y1' }
-    ]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: { min: 50, max: 200, position: 'left', title: { display: true, text: '血糖値(mg/dL)' } },
-      y1: { min: 0, max: 40, position: 'right', title: { display: true, text: 'インスリン量(U)' }, grid: { drawOnChartArea: false } }
-    }
   }
-});
 
-function updateGraph() {
-  const selectedMonthHistory = history.filter(entry => entry.date.startsWith(selectedMonth));
-  const bgData = Array(30).fill(null);
-  const insulinData = Array(30).fill(null);
-  selectedMonthHistory.forEach(entry => {
-    const day = parseInt(entry.date.split('-')[2], 10);
-    if(day >= 1 && day <= 30){
-      bgData[day - 1] = Number(entry.bg);
-      insulinData[day - 1] = Number(entry.insulin);
-    }
-  });
-  insulinChart.data.datasets[0].data = bgData;
-  insulinChart.data.datasets[1].data = insulinData;
-  insulinChart.update();
+  document.getElementById("recordTable").innerHTML = html;
+  localStorage.setItem("records", JSON.stringify(records));
 }
 
-function plotHistory(index) {
-  const entry = history[index];
-  const day = parseInt(entry.date.split('-')[2], 10);
-  if(day >= 1 && day <= 30){
-    insulinChart.data.datasets[0].data[day - 1] = Number(entry.bg);
-    insulinChart.data.datasets[1].data[day - 1] = Number(entry.insulin);
-    insulinChart.update();
-  }
+/* ---------------------------------
+   表セル編集保存
+-----------------------------------*/
+function updateRecord(date, meal, type, value){
+  records[date][meal][type] = value;
+  localStorage.setItem("records", JSON.stringify(records));
 }
 
-document.getElementById('monthSelector').addEventListener('change', function() {
-  selectedMonth = this.value;
-  updateGraph();
-});
+function updateRecordMemo(date, value){
+  records[date].memo = value;
+  localStorage.setItem("records", JSON.stringify(records));
+}
 
-// 初期表示
-displayHistory();
-updateGraph();
+/* 初期表示 */
+renderHistory();
+drawRecordTable();
 </script>
+
 </body>
 </html>
+
 
