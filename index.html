@@ -3,174 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>糖質・インスリン計算ツール</title>
+<title>糖質・インスリン計算＆記録ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   body { font-family: sans-serif; padding: 20px; max-width: 1200px; margin: auto; }
   h1 { font-size: 24px; }
   label { display: block; margin-top: 10px; font-size: 16px; }
-  input, select { padding: 7px; width: 100%; font-size: 16px; margin-top: 3px; }
-  button { margin-top: 15px; padding: 10px; font-size: 16px; border-radius: 5px; background-color:#007bff; color:white; border:none; cursor:pointer; }
-  button:hover { background-color:#0056b3; }
-  .box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px; }
-  #result { margin-top: 10px; font-size: 16px; padding: 10px; background: #f0f8ff; border-radius: 5px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; font-size: 14px; }
+  input, select { padding: 7px; width: 100%; font-size: 16px; }
+  button { margin-top: 20px; padding: 12px; font-size: 18px; border-radius: 6px; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  td, th { border: 1px solid #ccc; text-align: center; padding: 6px; }
   th { background-color: #f4f4f4; }
-  input[type="number"] { width: 80px; }
-  .scroll-container { overflow-x:auto; }
 </style>
 </head>
 <body>
 
-<h1>糖質・インスリン計算ツール</h1>
+<h1>糖質・インスリン計算＆記録ツール</h1>
 
-<div class="box">
+<div>
   <h2>① インスリン計算</h2>
-
-  <label>日付を選択</label>
-  <input type="date" id="dateSelector">
-
-  <label>食事時間</label>
-  <select id="mealTime" onchange="loadLastValues()">
+  <label>日付：</label><input type="date" id="dateSelector">
+  <label>食事時間：</label>
+  <select id="mealTime">
     <option value="morning">朝</option>
     <option value="afternoon">昼</option>
     <option value="evening">夜</option>
     <option value="other">その他</option>
   </select>
-
-  <label>インスリン1単位で変化する血糖値(mg/dL)</label>
+  <label>インスリン1Uで変化する血糖値（mg/dL）：</label>
   <input type="number" id="insulinChange">
-
-  <label>主食の種類</label>
+  <label>主食：</label>
   <select id="mainFood" onchange="toggleCarbInput()">
     <option value="rice">お米</option>
     <option value="bread">パン</option>
-    <option value="noodle">麺類</option>
+    <option value="noodle">麺</option>
   </select>
-
-  <label id="mainGramLabel">主食量(g)</label>
-  <input type="number" id="mainGram">
-
-  <label id="otherCarbsLabel">主食の糖質量(g)</label>
-  <input type="number" id="otherCarbs">
-
-  <label>その他の食べ物（名前）</label>
-  <input type="text" id="otherFoodName" placeholder="例：リンゴ、バナナ">
-
-  <label>その他の糖質量(g)</label>
-  <input type="number" id="otherFoodCarbs" placeholder="例：40">
-
-  <label>カーボ比(g/1U)</label>
+  <label>主食量(g) または 糖質量(g)：</label>
+  <input type="number" id="mainGram" placeholder="主食量" />
+  <input type="number" id="otherCarbs" placeholder="その他糖質量" />
+  <label>その他の食べ物：</label>
+  <input type="text" id="otherFood" placeholder="例：リンゴ、バナナ">
+  <label>カーボ比 (g / 1U)：</label>
   <input type="number" id="carbRatio">
-
-  <label>現在血糖値(mg/dL)</label>
+  <label>現在血糖値：</label>
   <input type="number" id="currentBg">
-
-  <label>目標血糖値(mg/dL)</label>
+  <label>目標血糖値：</label>
   <input type="number" id="targetBg">
-
-  <button onclick="calculateInsulin()">インスリン量を計算</button>
+  <button onclick="calculateInsulin()">計算して履歴に追加</button>
   <div id="result"></div>
 </div>
 
-<h2>計算履歴（最新3件）</h2>
-<div class="scroll-container">
-  <table id="historyTable">
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>食事時間</th>
-        <th>主食</th>
-        <th>合計糖質(g)</th>
-        <th>インスリン量(U)</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-<button onclick="reflectToRecord()">表に反映</button>
+<h2>② 記録表（血糖値・インスリン）</h2>
+<label>年：</label>
+<select id="yearSelector"></select>
+<label>月：</label>
+<select id="monthSelector"></select>
+<button onclick="generatePDF()">PDF出力</button>
 
-<h2>② 血糖値 & インスリン記録表</h2>
-<div class="box">
-  <label>年</label>
-  <select id="yearSelector"></select>
-  <label>月</label>
-  <select id="monthSelector"></select>
-
-  <div class="scroll-container">
-    <table id="recordTable">
-      <thead>
-        <tr>
-          <th>日付</th>
-          <th colspan="2">朝</th>
-          <th colspan="2">昼</th>
-          <th colspan="2">夜</th>
-          <th colspan="2">その他</th>
-          <th>メモ</th>
-        </tr>
-        <tr>
-          <th></th>
-          <th>BG</th><th>Ins</th>
-          <th>BG</th><th>Ins</th>
-          <th>BG</th><th>Ins</th>
-          <th>BG</th><th>Ins</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
+<table id="recordTable">
+  <thead>
+    <tr>
+      <th>日付</th>
+      <th>朝 BG</th><th>朝 Ins</th>
+      <th>昼 BG</th><th>昼 Ins</th>
+      <th>夜 BG</th><th>夜 Ins</th>
+      <th>その他 BG</th><th>その他 Ins</th>
+      <th>メモ</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
 
 <script>
-const mealKeys = ['morning','afternoon','evening','other'];
-const mealLabels = { morning:'朝', afternoon:'昼', evening:'夜', other:'その他' };
+const mealLabelMap = { morning:'朝', afternoon:'昼', evening:'夜', other:'その他' };
 const carbTable = { rice:37, bread:44, noodle:25 };
-let lastInsulinChange = { morning:30, afternoon:30, evening:30, other:30 };
+
+let history = JSON.parse(localStorage.getItem('history')) || [];
+let lastInsulinChange = { morning:'', afternoon:'', evening:'', other:'' };
 let lastCarbRatio = { morning:12, afternoon:12, evening:12, other:12 };
 let lastTargetBg = 100;
-let history = JSON.parse(localStorage.getItem('history')) || [];
-let records = JSON.parse(localStorage.getItem('records')) || {};
 
-function init() {
-  const now = new Date();
-  const yearSelect = document.getElementById('yearSelector');
-  for(let y=2025;y<=2027;y++){
-    const opt = document.createElement('option'); opt.value=y; opt.textContent=y; yearSelect.appendChild(opt);
-  }
-  yearSelect.value = now.getFullYear();
-
-  const monthSelect = document.getElementById('monthSelector');
-  for(let m=1;m<=12;m++){
-    const opt = document.createElement('option'); opt.value=m; opt.textContent=m;
-    monthSelect.appendChild(opt);
-  }
-  monthSelect.value = now.getMonth()+1;
-
-  loadLastValues();
-  displayHistory();
-  generateRecordTable();
-}
-
-function toggleCarbInput(){
-  const food = document.getElementById('mainFood').value;
-  const label = document.getElementById('mainGramLabel');
-  const otherLabel = document.getElementById('otherCarbsLabel');
-  if(food==='bread'){
-    label.textContent='主食量(g)';
-    otherLabel.textContent='パンの糖質量(g)';
-  } else {
-    label.textContent='主食量(g)';
-    otherLabel.textContent='主食の糖質量(g)';
-  }
-}
-
-function loadLastValues(){
-  const mealTime = document.getElementById('mealTime').value;
-  document.getElementById('insulinChange').value = lastInsulinChange[mealTime];
-  document.getElementById('carbRatio').value = lastCarbRatio[mealTime];
-  document.getElementById('targetBg').value = lastTargetBg;
-}
+function toggleCarbInput(){}
 
 function calculateInsulin(){
   const date = document.getElementById('dateSelector').value;
@@ -179,101 +92,112 @@ function calculateInsulin(){
   const mainFood = document.getElementById('mainFood').value;
   const mainGram = Number(document.getElementById('mainGram').value);
   const otherCarbs = Number(document.getElementById('otherCarbs').value)||0;
-  const otherFoodCarbs = Number(document.getElementById('otherFoodCarbs').value)||0;
   const carbRatio = Number(document.getElementById('carbRatio').value);
   const currentBg = Number(document.getElementById('currentBg').value);
   const targetBg = Number(document.getElementById('targetBg').value);
+  const otherFood = document.getElementById('otherFood').value;
 
-  // 前回値保存
-  lastInsulinChange[mealTime] = insulinChange;
-  lastCarbRatio[mealTime] = carbRatio;
-  lastTargetBg = targetBg;
+  lastInsulinChange[mealTime]=insulinChange;
+  lastCarbRatio[mealTime]=carbRatio;
+  lastTargetBg=targetBg;
 
   const mainCarbs = mainGram*(carbTable[mainFood]/100);
-  const totalCarbs = mainCarbs + otherCarbs + otherFoodCarbs;
+  const totalCarbs = mainCarbs + otherCarbs;
   const carbInsulin = totalCarbs / carbRatio;
   const correctionInsulin = (currentBg - targetBg)/insulinChange;
-  const totalInsulin = Math.max(carbInsulin+correctionInsulin,0);
+  const totalInsulin = Math.max(carbInsulin + correctionInsulin,0);
 
-  document.getElementById('result').innerHTML = 
-    `合計糖質: ${totalCarbs.toFixed(1)} g<br>必要インスリン量: ${totalInsulin.toFixed(1)} U`;
+  document.getElementById('result').innerHTML =
+    `合計糖質: ${totalCarbs.toFixed(1)}g, 必要インスリン: ${totalInsulin.toFixed(1)}U`;
 
-  // 履歴保存（最新3件のみ）
-  const entry = {date, meal:mealTime, mainFood, totalCarbs:totalCarbs.toFixed(1), insulin:totalInsulin.toFixed(1)};
+  const entry = { date, meal:mealTime, bg:currentBg, insulin:totalInsulin.toFixed(1), otherFood };
   history.unshift(entry);
   if(history.length>3) history.pop();
   localStorage.setItem('history', JSON.stringify(history));
-  displayHistory();
+  updateRecordTable();
 }
 
-function displayHistory(){
-  const tbody = document.querySelector('#historyTable tbody');
+function updateRecordTable(){
+  const tbody = document.getElementById('tableBody');
   tbody.innerHTML='';
-  history.forEach(e=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML=`<td>${e.date}</td><td>${mealLabels[e.meal]}</td><td>${e.mainFood}</td><td>${e.totalCarbs}</td><td>${e.insulin}</td>`;
+  const year = Number(document.getElementById('yearSelector').value);
+  const month = Number(document.getElementById('monthSelector').value);
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for(let d=1; d<=daysInMonth; d++){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${d}</td>`+
+      `<td contenteditable></td><td contenteditable></td>`+ // 朝
+      `<td contenteditable></td><td contenteditable></td>`+ // 昼
+      `<td contenteditable></td><td contenteditable></td>`+ // 夜
+      `<td contenteditable></td><td contenteditable></td>`+ // その他
+      `<td contenteditable></td>`; // メモ
     tbody.appendChild(tr);
+  }
+
+  // 直近履歴を表に反映
+  history.forEach(entry=>{
+    const entryDate = new Date(entry.date);
+    if(entryDate.getFullYear()===year && (entryDate.getMonth()+1)===month){
+      const tr = tbody[entryDate.getDate()-1];
+      switch(entry.meal){
+        case 'morning': tr.children[1].textContent=entry.bg; tr.children[2].textContent=entry.insulin; break;
+        case 'afternoon': tr.children[3].textContent=entry.bg; tr.children[4].textContent=entry.insulin; break;
+        case 'evening': tr.children[5].textContent=entry.bg; tr.children[6].textContent=entry.insulin; break;
+        case 'other': tr.children[7].textContent=entry.bg; tr.children[8].textContent=entry.insulin; break;
+      }
+    }
   });
 }
 
-function reflectToRecord(){
-  const date = document.getElementById('dateSelector').value;
-  if(!date) { alert('日付を選んでください'); return; }
-  const mealTime = document.getElementById('mealTime').value;
-  const currentBg = Number(document.getElementById('currentBg').value);
-  const insulin = Number(document.querySelector('#result').innerHTML.match(/必要インスリン量: ([0-9.]+)/)[1]);
-
-  const year = date.split('-')[0];
-  const month = parseInt(date.split('-')[1],10);
-
-  if(!records[year]) records[year]={};
-  if(!records[year][month]) records[year][month]={};
-  records[year][month][date] = records[year][month][date]||{};
-  records[year][month][date][mealTime] = {bg:currentBg, insulin:insulin};
-  localStorage.setItem('records', JSON.stringify(records));
-  generateRecordTable();
+// 年・月の初期化
+const yearSel = document.getElementById('yearSelector');
+const monthSel = document.getElementById('monthSelector');
+const now = new Date();
+for(let y=2025;y<=2027;y++){
+  const opt = document.createElement('option'); opt.value=y; opt.text=y; yearSel.appendChild(opt);
 }
+yearSel.value=now.getFullYear();
+for(let m=1;m<=12;m++){
+  const opt = document.createElement('option'); opt.value=m; opt.text=m; monthSel.appendChild(opt);
+}
+monthSel.value=now.getMonth()+1;
 
-function generateRecordTable(){
-  const year = document.getElementById('yearSelector').value;
-  const month = document.getElementById('monthSelector').value;
-  const tbody = document.querySelector('#recordTable tbody');
-  tbody.innerHTML='';
-  const daysInMonth = new Date(year,month,0).getDate();
-  for(let d=1;d<=daysInMonth;d++){
-    const tr = document.createElement('tr');
-    tr.innerHTML=`<td>${d}日</td>`;
-    mealKeys.forEach(meal=>{
-      const data = records[year]?.[month]?.[`${year}-${month.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`]?.[meal];
-      const bgVal = data?data.bg:'';
-      const insVal = data?data.insulin:'';
-      tr.innerHTML+=`<td><input type="number" value="${bgVal}" onchange="updateRecord('${year}','${month}','${d}','${meal}','bg',this.value)"></td>`;
-      tr.innerHTML+=`<td><input type="number" value="${insVal}" onchange="updateRecord('${year}','${month}','${d}','${meal}','insulin',this.value)"></td>`;
+yearSel.onchange=updateRecordTable;
+monthSel.onchange=updateRecordTable;
+
+updateRecordTable();
+
+// PDF出力
+function generatePDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l','pt','a4');
+  doc.setFontSize(12);
+  doc.text(`血糖値・インスリン記録表 ${yearSel.value}年 ${monthSel.value}月`, 40, 30);
+
+  const table = document.getElementById('recordTable');
+  const rows = table.querySelectorAll('tr');
+  const colWidths = [40,40,40,40,40,40,40,40,40,80];
+  let startY=50;
+
+  rows.forEach((row,rowIdx)=>{
+    let startX=40;
+    const cells = row.querySelectorAll('th, td');
+    cells.forEach((cell,cellIdx)=>{
+      doc.rect(startX,startY,colWidths[cellIdx],20);
+      doc.text(cell.textContent||'', startX+2, startY+14);
+      startX+=colWidths[cellIdx];
     });
-    tr.innerHTML+='<td><input type="text"></td>';
-    tbody.appendChild(tr);
-  }
+    startY+=20;
+    if(startY>550){doc.addPage(); startY=50;}
+  });
+
+  doc.save(`BG_Insulin_${yearSel.value}_${monthSel.value}.pdf`);
 }
-
-function updateRecord(year,month,day,meal,type,value){
-  if(!records[year]) records[year]={};
-  if(!records[year][month]) records[year][month]={};
-  if(!records[year][month][`${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`])
-    records[year][month][`${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`]={};
-  if(!records[year][month][`${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`][meal])
-    records[year][month][`${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`][meal]={};
-  records[year][month][`${year}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`][meal][type]=Number(value);
-  localStorage.setItem('records', JSON.stringify(records));
-}
-
-document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
-document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
-
-init();
 </script>
-
 </body>
 </html>
+
 
 
 
