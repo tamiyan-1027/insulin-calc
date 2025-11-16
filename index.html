@@ -14,10 +14,16 @@
   .box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 8px; }
   #result { margin-top: 10px; font-size: 16px; padding: 10px; background: #f0f8ff; border-radius: 5px; }
   table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; font-size: 14px; }
+  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; font-size: 14px; white-space: nowrap; }
   th { background-color: #f4f4f4; }
-  input[type="number"] { width: 80px; }
-  .scroll-container { overflow-x:auto; }
+  input[type="number"], input[type="text"] { width: 80px; }
+  .scroll-container { overflow-x:auto; width: 100%; -webkit-overflow-scrolling: touch; }
+  /* メモ欄を広くして横スクロール可能に */
+  .memo-input { min-width: 200px; max-width: 400px; }
+  @media (max-width: 600px) {
+    input[type="number"], input[type="text"] { width: 60px; font-size: 14px; }
+    .memo-input { min-width: 150px; max-width: 300px; }
+  }
 </style>
 </head>
 <body>
@@ -228,7 +234,7 @@ function generateRecordTable(){
       tr.innerHTML+=`<td><input type="number" value="${bgVal}" onchange="updateRecord('${year}','${month}','${d}','${meal}','bg',this.value)"></td>`;
       tr.innerHTML+=`<td><input type="number" value="${insVal}" onchange="updateRecord('${year}','${month}','${d}','${meal}','insulin',this.value)"></td>`;
     });
-    tr.innerHTML+='<td><input type="text"></td>';
+    tr.innerHTML+='<td><input type="text" class="memo-input"></td>';
     tbody.appendChild(tr);
   }
 }
@@ -250,9 +256,23 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 async function exportRecordPDF(){
   const { jsPDF } = window.jspdf;
   const recordContainer = document.getElementById('recordContainer');
-  const canvas = await html2canvas(recordContainer, { scale:2 });
+
+  // 横スクロール全体を表示させてcanvas化
+  const originalWidth = recordContainer.scrollWidth;
+  const originalHeight = recordContainer.scrollHeight;
+
+  const canvas = await html2canvas(recordContainer, { 
+    scale:2, 
+    width: originalWidth, 
+    height: originalHeight,
+    scrollX: -recordContainer.scrollLeft,
+    scrollY: -recordContainer.scrollTop,
+    windowWidth: document.documentElement.offsetWidth,
+    windowHeight: document.documentElement.offsetHeight
+  });
+
   const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p','pt','a4');
+  const pdf = new jsPDF('l','pt','a4'); // 横向きでPDF
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
   const imgProps = { width: canvas.width, height: canvas.height };
@@ -278,6 +298,7 @@ init();
 
 </body>
 </html>
+
 
 
 
