@@ -256,37 +256,37 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 async function exportRecordPDF(){
   const { jsPDF } = window.jspdf;
   const recordContainer = document.getElementById('recordContainer');
+  const recordTable = document.getElementById('recordTable');
 
-  // 横スクロール全体を表示させてcanvas化
-  const originalWidth = recordContainer.scrollWidth;
-  const originalHeight = recordContainer.scrollHeight;
-
-  const canvas = await html2canvas(recordContainer, { 
-    scale:2, 
-    width: originalWidth, 
-    height: originalHeight,
-    scrollX: -recordContainer.scrollLeft,
-    scrollY: -recordContainer.scrollTop,
-    windowWidth: document.documentElement.offsetWidth,
-    windowHeight: document.documentElement.offsetHeight
+  // 一時的にスクロールを解除して全体幅を取得
+  const originalOverflow = recordContainer.style.overflowX;
+  recordContainer.style.overflowX = 'visible';
+  
+  const canvas = await html2canvas(recordTable, { 
+    scale: 2, // 高解像度
+    useCORS: true
   });
 
+  // 元に戻す
+  recordContainer.style.overflowX = originalOverflow;
+
   const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('l','pt','a4'); // 横向きでPDF
+  const pdf = new jsPDF('p','pt','a4'); // 縦向き
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
-  const imgProps = { width: canvas.width, height: canvas.height };
-  const ratio = Math.min(pdfWidth/imgProps.width, pdfHeight/imgProps.height);
-  let heightLeft = canvas.height * ratio;
+  const imgWidth = canvas.width;
+  const imgHeight = canvas.height;
+  const ratio = pdfWidth / imgWidth;
+  let heightLeft = imgHeight * ratio;
   let position = 0;
 
-  pdf.addImage(imgData,'PNG',0,position,canvas.width*ratio,canvas.height*ratio);
+  pdf.addImage(imgData,'PNG',0,position,imgWidth*ratio,imgHeight*ratio);
   heightLeft -= pdfHeight;
 
   while(heightLeft > 0){
     pdf.addPage();
     position -= pdfHeight;
-    pdf.addImage(imgData,'PNG',0,position,canvas.width*ratio,canvas.height*ratio);
+    pdf.addImage(imgData,'PNG',0,position,imgWidth*ratio,imgHeight*ratio);
     heightLeft -= pdfHeight;
   }
 
