@@ -112,7 +112,6 @@
 
 <button onclick="exportRecordPDF()">記録表をPDF化</button>
 
-<!-- ライブラリ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -250,35 +249,48 @@ function updateRecord(year,month,day,meal,type,value){
 document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
 document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
 
-async function exportRecordPDF(){
+// ================= PDF生成（改善版） =================
+async function exportRecordPDF() {
   const { jsPDF } = window.jspdf;
   const recordContainer = document.getElementById('recordContainer');
-  
-  const canvas = await html2canvas(recordContainer, { scale:2 });
+
+  // 高解像度でキャプチャ
+  const canvas = await html2canvas(recordContainer, { scale:3, useCORS:true });
   const imgData = canvas.toDataURL('image/png');
-  
-  const pdf = new jsPDF('p','mm','a4'); // mm単位
+
+  const pdf = new jsPDF('p', 'mm', 'a4');
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
   
-  const margin = 10; // 左右上下の余白
+  const margin = 10; // 上下左右の余白
+  const headerHeight = 10; // ページ上部に表示するタイトルの高さ
   const imgWidth = pdfWidth - 2*margin;
   const imgHeight = canvas.height * (imgWidth / canvas.width);
   
-  let heightLeft = imgHeight;
-  let position = margin;
-  
-  pdf.addImage(imgData,'PNG', margin, position, imgWidth, imgHeight);
-  heightLeft -= (pdfHeight - 2*margin);
+  const year = document.getElementById('yearSelector').value;
+  const month = document.getElementById('monthSelector').value;
+  const title = `${year}年${month}月`;
 
-  while(heightLeft > 0){
+  let position = margin + headerHeight;
+  let heightLeft = imgHeight;
+
+  // 1ページ目
+  pdf.setFontSize(14);
+  pdf.text(title, margin, margin + 7);
+  pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+  heightLeft -= (pdfHeight - margin - headerHeight - margin); 
+
+  // 2ページ目以降
+  while (heightLeft > 0) {
     pdf.addPage();
-    position = margin - (imgHeight - heightLeft);
-    pdf.addImage(imgData,'PNG', margin, position, imgWidth, imgHeight);
-    heightLeft -= (pdfHeight - 2*margin);
+    pdf.setFontSize(14);
+    pdf.text(title, margin, margin + 7);
+    position = margin + headerHeight - (imgHeight - heightLeft);
+    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - margin - headerHeight - margin);
   }
 
-  pdf.save(`記録表_${document.getElementById('yearSelector').value}_${document.getElementById('monthSelector').value}.pdf`);
+  pdf.save(`記録表_${year}_${month}.pdf`);
 }
 
 init();
