@@ -250,42 +250,41 @@ function updateRecord(year,month,day,meal,type,value){
 document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
 document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
 
-// PDF出力関数（jsPDF + autoTable）
-function exportRecordPDF() {
+// --- PDF出力 ---
+async function exportRecordPDF(){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('p', 'pt', 'a4');
+  const doc = new jsPDF('p','mm','a4');
+
   const year = document.getElementById('yearSelector').value;
   const month = document.getElementById('monthSelector').value;
 
-  const headers = [["日付","朝 BG","朝 Ins","昼 BG","昼 Ins","夜 BG","夜 Ins","その他 BG","その他 Ins","メモ"]];
-  const data = [];
-  for (let d = 1; d <= 31; d++) {
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(16);
+  doc.text(`${year}年${month}月の血糖値 & インスリン記録表`, 14, 15);
+
+  const head = [['日付','朝 BG','朝 Ins','昼 BG','昼 Ins','夜 BG','夜 Ins','その他 BG','その他 Ins','メモ']];
+  const body = [];
+  for(let d=1;d<=31;d++){
     const row = [`${d}日`];
-    for (let meal of mealKeys) {
-      const record = records[year]?.[month]?.[`${year}-${month.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`]?.[meal];
-      if (record) row.push(record.bg ?? "", record.insulin ?? "");
-      else row.push("", "");
-    }
-    row.push("");
-    data.push(row);
+    mealKeys.forEach(meal=>{
+      const data = records[year]?.[month]?.[`${year}-${month.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`]?.[meal];
+      row.push(data?data.bg:'');
+      row.push(data?data.insulin:'');
+    });
+    row.push('');
+    body.push(row);
   }
 
-  doc.setFontSize(16);
-  doc.text(`${year}年${month}月`, doc.internal.pageSize.getWidth()/2, 40, { align:'center' });
-
   doc.autoTable({
-    head: headers,
-    body: data,
-    startY: 60,
-    styles: { fontSize: 10, cellPadding: 4 },
-    headStyles: { fillColor: [240,240,240] },
-    theme: 'grid',
-    margin: { top:50, left:40, right:40 },
-    didDrawPage: (dataArg) => {
-      const pageCount = doc.getNumberOfPages();
-      doc.setFontSize(10);
-      doc.text(`Page ${doc.getCurrentPageInfo().pageNumber} / ${pageCount}`, doc.internal.pageSize.getWidth()-50, doc.internal.pageSize.getHeight()-10);
-    }
+    startY:25,
+    head: head,
+    body: body,
+    margin:{left:14,right:14},
+    styles:{ font:'helvetica', fontSize:10, cellPadding:2 },
+    headStyles:{ fillColor:[200,200,200] },
+    theme:'grid',
+    showHead:'everyPage',
+    pageBreak:'auto'
   });
 
   doc.save(`記録表_${year}_${month}.pdf`);
@@ -293,9 +292,9 @@ function exportRecordPDF() {
 
 init();
 </script>
+
 </body>
 </html>
-
 
 
 
