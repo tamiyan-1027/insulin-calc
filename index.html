@@ -112,8 +112,9 @@
 
 <button onclick="exportRecordPDF()">記録表をPDF化</button>
 
+<!-- ライブラリ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 <script>
 const mealKeys = ['morning','afternoon','evening','other'];
@@ -249,55 +250,52 @@ function updateRecord(year,month,day,meal,type,value){
 document.getElementById('yearSelector').addEventListener('change', generateRecordTable);
 document.getElementById('monthSelector').addEventListener('change', generateRecordTable);
 
-// ================= PDF生成（改善版） =================
-async function exportRecordPDF() {
+// PDF出力関数（jsPDF + autoTable）
+function exportRecordPDF() {
   const { jsPDF } = window.jspdf;
-  const recordContainer = document.getElementById('recordContainer');
-
-  // 高解像度でキャプチャ
-  const canvas = await html2canvas(recordContainer, { scale:3, useCORS:true });
-  const imgData = canvas.toDataURL('image/png');
-
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  
-  const margin = 10; // 上下左右の余白
-  const headerHeight = 10; // ページ上部に表示するタイトルの高さ
-  const imgWidth = pdfWidth - 2*margin;
-  const imgHeight = canvas.height * (imgWidth / canvas.width);
-  
+  const doc = new jsPDF('p', 'pt', 'a4');
   const year = document.getElementById('yearSelector').value;
   const month = document.getElementById('monthSelector').value;
-  const title = `${year}年${month}月`;
 
-  let position = margin + headerHeight;
-  let heightLeft = imgHeight;
-
-  // 1ページ目
-  pdf.setFontSize(14);
-  pdf.text(title, margin, margin + 7);
-  pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-  heightLeft -= (pdfHeight - margin - headerHeight - margin); 
-
-  // 2ページ目以降
-  while (heightLeft > 0) {
-    pdf.addPage();
-    pdf.setFontSize(14);
-    pdf.text(title, margin, margin + 7);
-    position = margin + headerHeight - (imgHeight - heightLeft);
-    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-    heightLeft -= (pdfHeight - margin - headerHeight - margin);
+  const headers = [["日付","朝 BG","朝 Ins","昼 BG","昼 Ins","夜 BG","夜 Ins","その他 BG","その他 Ins","メモ"]];
+  const data = [];
+  for (let d = 1; d <= 31; d++) {
+    const row = [`${d}日`];
+    for (let meal of mealKeys) {
+      const record = records[year]?.[month]?.[`${year}-${month.toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`]?.[meal];
+      if (record) row.push(record.bg ?? "", record.insulin ?? "");
+      else row.push("", "");
+    }
+    row.push("");
+    data.push(row);
   }
 
-  pdf.save(`記録表_${year}_${month}.pdf`);
+  doc.setFontSize(16);
+  doc.text(`${year}年${month}月`, doc.internal.pageSize.getWidth()/2, 40, { align:'center' });
+
+  doc.autoTable({
+    head: headers,
+    body: data,
+    startY: 60,
+    styles: { fontSize: 10, cellPadding: 4 },
+    headStyles: { fillColor: [240,240,240] },
+    theme: 'grid',
+    margin: { top:50, left:40, right:40 },
+    didDrawPage: (dataArg) => {
+      const pageCount = doc.getNumberOfPages();
+      doc.setFontSize(10);
+      doc.text(`Page ${doc.getCurrentPageInfo().pageNumber} / ${pageCount}`, doc.internal.pageSize.getWidth()-50, doc.internal.pageSize.getHeight()-10);
+    }
+  });
+
+  doc.save(`記録表_${year}_${month}.pdf`);
 }
 
 init();
 </script>
-
 </body>
 </html>
+
 
 
 
