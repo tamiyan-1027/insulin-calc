@@ -255,11 +255,23 @@ document.getElementById('monthSelector').addEventListener('change', generateReco
 
 async function exportRecordPDF() {
   const { jsPDF } = window.jspdf;
-  const recordTable = document.getElementById('recordTable');
   const year = document.getElementById('yearSelector').value;
   const month = document.getElementById('monthSelector').value;
+  const recordTable = document.getElementById('recordTable');
 
-  // 一時的にbodyにコピーしてcanvas化
+  // PDF初期化
+  const pdf = new jsPDF('p', 'pt', 'a4');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const margin = 20; // ページ余白
+  const titleHeight = 15; // タイトル用高さ
+
+  // タイトル
+  pdf.setFontSize(12);
+  pdf.setFont(undefined, 'bold');
+  pdf.text(`${year}.${month.toString().padStart(2, '0')}`, pdfWidth / 2, margin + 10, { align: 'center' });
+
+  // テーブル全体を一時コピー
   const tableClone = recordTable.cloneNode(true);
   const tempDiv = document.createElement('div');
   tempDiv.style.position = 'absolute';
@@ -273,29 +285,18 @@ async function exportRecordPDF() {
 
   document.body.removeChild(tempDiv);
 
-  // PDF初期化
-  const pdf = new jsPDF('p', 'pt', 'a4');
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  const margin = 40; // 余白
-
-  // タイトルの高さを確保
-  const titleHeight = 30;
-
-  // 画像をページ幅に収めるための縮尺計算
+  // 1ページに収まるよう縮小
+  const availableHeight = pdfHeight - margin * 2 - titleHeight;
   const imgWidth = pdfWidth - margin * 2;
   const imgHeight = canvas.height * (imgWidth / canvas.width);
+  const scale = availableHeight / imgHeight;
 
-  // 余白とタイトルを考慮して縦位置
-  let yPosition = margin + titleHeight;
-
-  // タイトル
-  pdf.setFontSize(16);
-  pdf.setFont(undefined, 'bold');
-  pdf.text(`${year}.${month.toString().padStart(2, '0')}`, pdfWidth / 2, margin + 20, { align: 'center' });
+  const finalWidth = imgWidth * scale;
+  const finalHeight = imgHeight * scale;
+  const yPosition = margin + titleHeight;
 
   // テーブル画像をPDFに追加
-  pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+  pdf.addImage(imgData, 'PNG', margin, yPosition, finalWidth, finalHeight);
 
   pdf.save(`Record_${year}_${month}.pdf`);
 }
